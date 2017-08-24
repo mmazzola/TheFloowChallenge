@@ -23,12 +23,17 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.PolylineOptions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private Activity mActivity = this;
     private GoogleMap mMap;
     private Location mLastLocation;
+    private PolylineOptions route;
     private CameraPosition mCameraPosition;
     private LocationCallback mLocationCallback;
     private ToggleButton toggleUserPositionButton;
@@ -40,6 +45,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
     private static final float ZOOM_LEVEL = 13;
+
+    //ROUTE
+    private List<LatLng> currentRoute;
+    private List<List<LatLng>> allRoutes = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,8 +107,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
             try {
                 if (b) {
+                    if(currentRoute == null){
+                        currentRoute = new ArrayList<LatLng>();
+                    }
                     mFusionClient.requestLocationUpdates(createLocationRequest(), mLocationCallback, Looper.myLooper());
                 } else {
+                    allRoutes.add(currentRoute);
+                    currentRoute.clear();
                     mFusionClient.removeLocationUpdates(mLocationCallback);
                 }
             }catch(SecurityException e){
@@ -141,8 +155,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void updateUI(){
-        mCameraPosition = CameraPosition.fromLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), mCameraPosition == null ? ZOOM_LEVEL : mMap.getCameraPosition().zoom);
+        LatLng latLng = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+        mCameraPosition = CameraPosition.fromLatLngZoom(latLng, mCameraPosition == null ? ZOOM_LEVEL : mMap.getCameraPosition().zoom);
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(mCameraPosition));
+        currentRoute.add(latLng);
+        drawLocation(latLng);
+    }
+
+    private void drawLocation(LatLng latLng){
+        PolylineOptions polylineOptions = new PolylineOptions();
+        polylineOptions.add(latLng);
+        mMap.addPolyline(polylineOptions);
     }
 
     private void disableApplication(){
