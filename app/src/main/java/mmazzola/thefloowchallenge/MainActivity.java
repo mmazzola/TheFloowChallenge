@@ -83,14 +83,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    public LocationRequest createLocationRequest(){
-        LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setInterval(1000);
-        mLocationRequest.setFastestInterval(1000);
-        return mLocationRequest;
-    }
-
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -115,6 +107,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
             }
         });
+    }
+
+    public LocationRequest createLocationRequest(){
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        return mLocationRequest;
     }
 
     @Override
