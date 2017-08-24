@@ -1,4 +1,4 @@
-package mmazzola.thefloowchallenge;
+package mmazzola.thefloowchallenge.activity;
 
 import android.Manifest;
 import android.app.Activity;
@@ -23,6 +23,13 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Polyline;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import mmazzola.thefloowchallenge.R;
+import mmazzola.thefloowchallenge.model.Journey;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -31,7 +38,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Location mLastLocation;
     private CameraPosition mCameraPosition;
     private LocationCallback mLocationCallback;
-    private ToggleButton toggleUserPositionButton;
     private FusedLocationProviderClient mFusionClient;
 
     //CONSTANTS
@@ -41,6 +47,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String KEY_LOCATION = "location";
     private static final float ZOOM_LEVEL = 13;
 
+    //ROUTE
+    private ToggleButton toggleUserPositionButton;
+    private boolean isTrackingJourney = false;
+    private Journey currentJourney;
+    private Polyline currentDraw;
+    private List<Journey> allJourneys = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,8 +62,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         toggleUserPositionButton = findViewById(R.id.toggleUserPosition);
-
-        mapFragment.getMapAsync(this);
 
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
@@ -63,17 +74,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             mLocationCallback = new LocationCallback() {
                 @Override
                 public void onLocationResult(LocationResult locationResult) {
-                handleLocationUpdate(locationResult);
+                    if(isTrackingJourney) {
+                        handleLocationUpdate(locationResult.getLastLocation());
+                    }
                 }
             };
+            mapFragment.getMapAsync(this);
         }catch(SecurityException e){
             Log.e("PERMISSION ", e.getLocalizedMessage());
         }
     }
 
-    /**
-     * Saves the state of the map when the activity is paused.
-     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_CODE:
+                if (grantResults.length > 0 && PackageManager.PERMISSION_GRANTED == grantResults[0]) {
+                    initMap();
+                }else{
+                    disableApplication();
+                }
+        }
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         if (mMap != null) {
@@ -90,23 +113,37 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             ActivityCompat.requestPermissions(this,PERMISSION_REQUESTED, PERMISSION_REQUEST_CODE );
             return;
         }
-        mMap.setMyLocationEnabled(true);
-        mFusionClient = new FusedLocationProviderClient(this);
-        toggleUserPositionButton.setChecked(false);
-        toggleUserPositionButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-            try {
-                if (b) {
-                    mFusionClient.requestLocationUpdates(createLocationRequest(), mLocationCallback, Looper.myLooper());
-                } else {
-                    mFusionClient.removeLocationUpdates(mLocationCallback);
+        initMap();
+    }
+
+    private void initMap(){
+        try {
+            mMap.setMyLocationEnabled(true);
+            mFusionClient = new FusedLocationProviderClient(this);
+            toggleUserPositionButton.setChecked(false);
+            toggleUserPositionButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                    isTrackingJourney = b;
+                    try {
+                        if (isTrackingJourney) {
+                            //Start Tracking new Journey
+                            mFusionClient.requestLocationUpdates(createLocationRequest(), mLocationCallback, Looper.myLooper());
+                        } else {
+                            //Terminate Journey Tracking
+                            mFusionClient.removeLocationUpdates(mLocationCallback);
+                            terminateRoute();
+                        }
+                    }catch(SecurityException e){
+                        Log.e("PERMISSION ", e.getLocalizedMessage());
+                        ActivityCompat.requestPermissions(mActivity,PERMISSION_REQUESTED, PERMISSION_REQUEST_CODE );
+                    }
                 }
-            }catch(SecurityException e){
-                ActivityCompat.requestPermissions(mActivity,PERMISSION_REQUESTED, PERMISSION_REQUEST_CODE );
-            }
-            }
-        });
+            });
+        }catch(SecurityException e){
+            Log.e("PERMISSION ", e.getLocalizedMessage());
+            ActivityCompat.requestPermissions(mActivity,PERMISSION_REQUESTED, PERMISSION_REQUEST_CODE );
+        }
     }
 
     public LocationRequest createLocationRequest(){
@@ -117,32 +154,38 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         return mLocationRequest;
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        try {
-            switch (requestCode) {
-                case PERMISSION_REQUEST_CODE:
-                    if (grantResults.length > 0 && PackageManager.PERMISSION_GRANTED == grantResults[0]) {
-                        mMap.setMyLocationEnabled(true);
-                    }else{
-                        disableApplication();
-                    }
-            }
-        }catch(SecurityException e){
-            Log.e("PERMISSION ", e.getLocalizedMessage());
+    private void handleLocationUpdate(Location location) {
+        LatLng currentPoint = new LatLng(location.getLatitude(), location.getLongitude());
+        if(currentJourney == null){
+            startRoute(currentPoint);
+        }
+        currentJourney.addPoint(currentPoint);
+        mLastLocation = location;
+        updateUI(currentPoint);
+    }
+
+    private void startRoute(LatLng startPoint){
+        currentJourney = new Journey(startPoint);
+        currentDraw = mMap.addPolyline(currentJourney.getDrawOptions());
+    }
+
+    private void terminateRoute() {
+        if(currentJourney != null) {
+            currentJourney.setDraw(currentDraw);
+            allJourneys.add(currentJourney);
+            currentJourney = null;
+        }else{
+            //TODO: PROMPT NOT ENOUGH DATA
         }
     }
 
-    private void handleLocationUpdate(LocationResult locationResult) {
-        mLastLocation = locationResult.getLastLocation();
-        if(toggleUserPositionButton.isChecked()) {
-            updateUI();
-        }
-    }
-
-    private void updateUI(){
-        mCameraPosition = CameraPosition.fromLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), mCameraPosition == null ? ZOOM_LEVEL : mMap.getCameraPosition().zoom);
+    private void updateUI(LatLng newPoint){
+        mCameraPosition = CameraPosition.fromLatLngZoom(newPoint, mCameraPosition == null ? ZOOM_LEVEL : mMap.getCameraPosition().zoom);
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(mCameraPosition));
+        currentJourney.addPoint(newPoint);
+        List<LatLng> points = currentDraw.getPoints();
+        points.add((newPoint));
+        currentDraw.setPoints(points);
     }
 
     private void disableApplication(){
