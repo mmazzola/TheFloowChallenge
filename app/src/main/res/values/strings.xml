@@ -3,4 +3,7 @@
     <string name="google_api_key">AIzaSyDqphusgunJTGH5NsPl9GJBFiHGLBXGOpg</string>
     <string name="toggle_button_off">START JOURNEY</string>
     <string name="toggle_button_on">FOLLOWING</string>
+    <string name="empty_journey_list">Start Following your steps to begin a new journey!</string>
+    <string name="journey_start_label">Start:</string>
+    <string name="journey_end_label">End:</string>
 </resources>

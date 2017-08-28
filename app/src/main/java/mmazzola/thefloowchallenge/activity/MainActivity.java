@@ -9,8 +9,13 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.View;
 import android.widget.CompoundButton;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -28,6 +33,7 @@ import com.google.android.gms.maps.model.Polyline;
 import java.util.ArrayList;
 import java.util.List;
 
+import mmazzola.thefloowchallenge.JourneyAdapter;
 import mmazzola.thefloowchallenge.R;
 import mmazzola.thefloowchallenge.model.Journey;
 
@@ -39,6 +45,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private CameraPosition mCameraPosition;
     private LocationCallback mLocationCallback;
     private FusedLocationProviderClient mFusionClient;
+
+    //RECYCLERVIEW
+    private RecyclerView mRecyclerView;
+    private RecyclerView.LayoutManager mLayoutManager;
+    private RecyclerView.Adapter mAdapter;
 
     //CONSTANTS
     private final int PERMISSION_REQUEST_CODE = 1;
@@ -62,6 +73,19 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         toggleUserPositionButton = findViewById(R.id.toggleUserPosition);
+        mRecyclerView = findViewById(R.id.journeysGrid);
+        mRecyclerView.setHasFixedSize(true);
+        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(mRecyclerView.getContext(),
+                DividerItemDecoration.HORIZONTAL);
+        mRecyclerView.addItemDecoration(dividerItemDecoration);
+
+        mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL,false);
+        mRecyclerView.setLayoutManager(mLayoutManager);
+
+        // specify an adapter (see also next example)
+        mAdapter = new JourneyAdapter(allJourneys);
+        mRecyclerView.setAdapter(mAdapter);
+
 
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
@@ -119,6 +143,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void initMap(){
         try {
             mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(false);
             mFusionClient = new FusedLocationProviderClient(this);
             toggleUserPositionButton.setChecked(false);
             toggleUserPositionButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -171,12 +196,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void terminateRoute() {
         if(currentJourney != null) {
+            if(allJourneys.isEmpty()){
+                findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
+            }
             currentJourney.setDraw(currentDraw);
+            currentJourney.endJourney();
             allJourneys.add(currentJourney);
             currentJourney = null;
         }else{
-            //TODO: PROMPT NOT ENOUGH DATA
-        }
+            Toast.makeText(this, "Not enough data collected to store a journey. Please try again!", Toast.LENGTH_SHORT).show();        }
     }
 
     private void updateUI(LatLng newPoint){
