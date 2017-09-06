@@ -3,6 +3,7 @@ package mmazzola.thefloowchallenge.activity;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Looper;
@@ -29,6 +30,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +39,7 @@ import mmazzola.thefloowchallenge.JourneyAdapter;
 import mmazzola.thefloowchallenge.R;
 import mmazzola.thefloowchallenge.model.Journey;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback , MapActivity{
 
     private Activity mActivity = this;
     private GoogleMap mMap;
@@ -46,17 +48,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private LocationCallback mLocationCallback;
     private FusedLocationProviderClient mFusionClient;
 
-    //RECYCLERVIEW
-    private RecyclerView mRecyclerView;
-    private RecyclerView.LayoutManager mLayoutManager;
-    private RecyclerView.Adapter mAdapter;
-
     //CONSTANTS
     private final int PERMISSION_REQUEST_CODE = 1;
     private final String[] PERMISSION_REQUESTED = {Manifest.permission.ACCESS_FINE_LOCATION};
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
     private static final float ZOOM_LEVEL = 13;
+    private static final float NEW_POINT_LOCATION_DISTANCE = 5f;
+    private static final PolylineOptions drawoptions = new PolylineOptions().color(Color.RED).width(5);
 
     //ROUTE
     private ToggleButton toggleUserPositionButton;
@@ -64,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Journey currentJourney;
     private Polyline currentDraw;
     private List<Journey> allJourneys = new ArrayList<>();
+    private JourneyAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,19 +73,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         toggleUserPositionButton = findViewById(R.id.toggleUserPosition);
-        mRecyclerView = findViewById(R.id.journeysGrid);
+        RecyclerView mRecyclerView = findViewById(R.id.journeysGrid);
         mRecyclerView.setHasFixedSize(true);
-        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(mRecyclerView.getContext(),
-                DividerItemDecoration.HORIZONTAL);
-        mRecyclerView.addItemDecoration(dividerItemDecoration);
-
-        mLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL,false);
-        mRecyclerView.setLayoutManager(mLayoutManager);
-
-        // specify an adapter (see also next example)
-        mAdapter = new JourneyAdapter(allJourneys);
+        mRecyclerView.addItemDecoration(new DividerItemDecoration(mRecyclerView.getContext(),
+                DividerItemDecoration.HORIZONTAL));
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        mAdapter = new JourneyAdapter(allJourneys, this);
         mRecyclerView.setAdapter(mAdapter);
-
 
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
@@ -150,6 +144,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
                     isTrackingJourney = b;
+                    mAdapter.setClickable(!isTrackingJourney);
                     try {
                         if (isTrackingJourney) {
                             //Start Tracking new Journey
@@ -183,34 +178,36 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng currentPoint = new LatLng(location.getLatitude(), location.getLongitude());
         if(currentJourney == null){
             startRoute(currentPoint);
+            mLastLocation = location;
+            updateUI(currentPoint);
         }
-        currentJourney.addPoint(currentPoint);
-        mLastLocation = location;
-        updateUI(currentPoint);
+        else if(mLastLocation == null || mLastLocation.distanceTo(location) >= NEW_POINT_LOCATION_DISTANCE) {
+            currentJourney.addPoint(currentPoint);
+            mLastLocation = location;
+            updateUI(currentPoint);
+        }
     }
 
     private void startRoute(LatLng startPoint){
         currentJourney = new Journey(startPoint);
-        currentDraw = mMap.addPolyline(currentJourney.getDrawOptions());
+        currentDraw = mMap.addPolyline(drawoptions);
     }
 
     private void terminateRoute() {
-        if(currentJourney != null) {
-            if(allJourneys.isEmpty()){
-                findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
-            }
-            currentJourney.setDraw(currentDraw);
+        if(currentJourney != null && currentJourney.getPoints().size() > 1) {
+            findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
             currentJourney.endJourney();
-            allJourneys.add(currentJourney);
+            mAdapter.addJourney(currentJourney);
             currentJourney = null;
+            clearMap();
         }else{
-            Toast.makeText(this, "Not enough data collected to store a journey. Please try again!", Toast.LENGTH_SHORT).show();        }
+            Toast.makeText(this, "Not enough data collected to store a journey. Please try again!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateUI(LatLng newPoint){
         mCameraPosition = CameraPosition.fromLatLngZoom(newPoint, mCameraPosition == null ? ZOOM_LEVEL : mMap.getCameraPosition().zoom);
         mMap.animateCamera(CameraUpdateFactory.newCameraPosition(mCameraPosition));
-        currentJourney.addPoint(newPoint);
         List<LatLng> points = currentDraw.getPoints();
         points.add((newPoint));
         currentDraw.setPoints(points);
@@ -219,5 +216,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void disableApplication(){
         toggleUserPositionButton.setChecked(false);
         toggleUserPositionButton.setEnabled(false);
+    }
+
+    @Override
+    public void updateMapWithJourney(List<LatLng> points) {
+        currentDraw = mMap.addPolyline(drawoptions);
+        currentDraw.setPoints(points);
+    }
+
+    @Override
+    public void clearMap() {
+        currentDraw.remove();
     }
 }

@@ -1,10 +1,6 @@
 package mmazzola.thefloowchallenge.model;
 
-import android.graphics.Color;
-
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -21,21 +17,6 @@ public class Journey {
     private List<LatLng> points;
 
     private long duration;
-
-    private PolylineOptions drawoptions = new PolylineOptions().color(Color.RED).width(5);
-    private Polyline draw;
-
-    public PolylineOptions getDrawOptions() {
-        return drawoptions;
-    }
-
-    public Polyline getDraw() {
-        return draw;
-    }
-
-    public void setDraw(Polyline draw) {
-        this.draw = draw;
-    }
 
     public String getStartTime() {
         return sdf.format(startTime);
@@ -55,12 +36,15 @@ public class Journey {
     public void addPoint(LatLng point){
         if(this.points != null){
             this.points.add(point);
-            this.drawoptions.add(point);
             this.endPoint = point;
         }
     }
 
     public void endJourney(){
         this.endTime = new Date();
+    }
+
+    public List<LatLng> getPoints() {
+        return points;
     }
 }
