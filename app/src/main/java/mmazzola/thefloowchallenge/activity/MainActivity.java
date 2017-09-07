@@ -9,13 +9,13 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.CompoundButton;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -29,17 +29,21 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import mmazzola.thefloowchallenge.JourneyAdapter;
 import mmazzola.thefloowchallenge.R;
 import mmazzola.thefloowchallenge.model.Journey;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback , MapActivity{
+public class MainActivity extends MapActivity implements OnMapReadyCallback{
 
     private Activity mActivity = this;
     private GoogleMap mMap;
@@ -47,6 +51,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private CameraPosition mCameraPosition;
     private LocationCallback mLocationCallback;
     private FusedLocationProviderClient mFusionClient;
+    private TextView mDistanceText;
 
     //CONSTANTS
     private final int PERMISSION_REQUEST_CODE = 1;
@@ -64,6 +69,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Polyline currentDraw;
     private List<Journey> allJourneys = new ArrayList<>();
     private JourneyAdapter mAdapter;
+    private List<Marker> markers = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         toggleUserPositionButton = findViewById(R.id.toggleUserPosition);
+        mDistanceText = findViewById(R.id.journey_distance);
         RecyclerView mRecyclerView = findViewById(R.id.journeysGrid);
         mRecyclerView.setHasFixedSize(true);
         mRecyclerView.addItemDecoration(new DividerItemDecoration(mRecyclerView.getContext(),
@@ -219,13 +226,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void updateMapWithJourney(List<LatLng> points) {
+    public void updateMapWithJourney(Journey j) {
         currentDraw = mMap.addPolyline(drawoptions);
-        currentDraw.setPoints(points);
+        currentDraw.setPoints(j.getPoints());
+        markers.add(mMap.addMarker(new MarkerOptions().position(j.getStartPoint()).title("Start")));
+        markers.add(mMap.addMarker(new MarkerOptions().position(j.getEndPoint()).title("End")));
+        String duration = String.format(Locale.ENGLISH,"%02d:%02d:%02d",
+                TimeUnit.MILLISECONDS.toHours(j.getDurationMillis()),
+                TimeUnit.MILLISECONDS.toMinutes(j.getDurationMillis()) -
+                        TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(j.getDurationMillis())),
+                TimeUnit.MILLISECONDS.toSeconds(j.getDurationMillis()) -
+                        TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(j.getDurationMillis())));
+        mDistanceText.setText(String.format(getString(R.string.journey_duration_text),duration));
+        mDistanceText.setVisibility(View.VISIBLE);
     }
 
     @Override
     public void clearMap() {
         currentDraw.remove();
+        for(Marker m : markers){
+            m.remove();
+        }
+        mDistanceText.setVisibility(View.GONE);
     }
 }

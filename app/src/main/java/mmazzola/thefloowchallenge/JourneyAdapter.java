@@ -49,7 +49,7 @@ public class JourneyAdapter extends RecyclerView.Adapter<JourneyAdapter.ViewHold
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         final Journey j = mDataset.get(position);
-        ((TextView)holder.mLayout.findViewById(R.id.journey_name)).setText("Route: "+position);
+        ((TextView)holder.mLayout.findViewById(R.id.journey_name)).setText(String.format(mActivity.getString(R.string.route_name),position));
         final TextView startTime = holder.mLayout.findViewById(R.id.journey_startTime);
         startTime.setText(j.getStartTime());
         final TextView endTime = holder.mLayout.findViewById(R.id.journey_endTime);
@@ -67,7 +67,7 @@ public class JourneyAdapter extends RecyclerView.Adapter<JourneyAdapter.ViewHold
                         selectedViewHolder = holder;
                         parent.setVisibility(View.VISIBLE);
                         ((LinearLayout)endTime.getParent()).setVisibility(View.VISIBLE);
-                        mActivity.updateMapWithJourney(j.getPoints());
+                        mActivity.updateMapWithJourney(j);
                     }else{
                         clearSelection();
                     }

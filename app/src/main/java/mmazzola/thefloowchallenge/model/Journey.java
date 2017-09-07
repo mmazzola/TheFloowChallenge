@@ -16,7 +16,7 @@ public class Journey {
     private final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm");
     private List<LatLng> points;
 
-    private long duration;
+    private long durationMillis;
 
     public String getStartTime() {
         return sdf.format(startTime);
@@ -42,9 +42,34 @@ public class Journey {
 
     public void endJourney(){
         this.endTime = new Date();
+        this.durationMillis = (endTime.getTime()-startTime.getTime());
     }
 
     public List<LatLng> getPoints() {
         return points;
+    }
+
+    public LatLng getStartPoint() {
+        return startPoint;
+    }
+
+    public void setStartPoint(LatLng startPoint) {
+        this.startPoint = startPoint;
+    }
+
+    public LatLng getEndPoint() {
+        return endPoint;
+    }
+
+    public void setEndPoint(LatLng endPoint) {
+        this.endPoint = endPoint;
+    }
+
+    public long getDurationMillis() {
+        return durationMillis;
+    }
+
+    public void setDurationMillis(long durationMillis) {
+        this.durationMillis = durationMillis;
     }
 }

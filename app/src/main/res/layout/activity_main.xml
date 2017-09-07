@@ -39,6 +39,15 @@
             android:layout_alignParentStart="true" />
 
         <TextView
+            android:id="@+id/journey_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/black"
+            android:visibility="gone"
+            android:textAlignment="center"
+            android:layout_above="@id/journeysGrid"/>
+
+        <TextView
             android:id="@+id/empty_journey_list"
             android:layout_width="match_parent"
             android:layout_height="@dimen/journey_list_height"

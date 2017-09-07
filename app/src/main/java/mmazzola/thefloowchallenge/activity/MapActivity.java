@@ -1,12 +1,12 @@
 package mmazzola.thefloowchallenge.activity;
 
-import com.google.android.gms.maps.model.LatLng;
+import android.support.v7.app.AppCompatActivity;
 
-import java.util.List;
+import mmazzola.thefloowchallenge.model.Journey;
 
-public interface MapActivity {
+public abstract class MapActivity extends AppCompatActivity{
 
-    public void updateMapWithJourney(List<LatLng> draw);
+    public abstract void updateMapWithJourney(Journey j);
 
-    public void clearMap();
+    public abstract void clearMap();
 }
