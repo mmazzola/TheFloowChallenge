@@ -87,7 +87,7 @@ public class JourneyAdapter extends RecyclerView.Adapter<JourneyAdapter.ViewHold
         this.clickable = clickable;
     }
 
-    private void clearSelection(){
+    public void clearSelection(){
         ((LinearLayout)selectedViewHolder.mLayout.findViewById(R.id.journey_startTime).getParent()).setVisibility(View.GONE);
         ((LinearLayout)selectedViewHolder.mLayout.findViewById(R.id.journey_endTime).getParent()).setVisibility(View.GONE);
         mActivity.clearMap();

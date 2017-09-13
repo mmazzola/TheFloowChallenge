@@ -2,10 +2,7 @@ package mmazzola.thefloowchallenge.activity;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ContentValues;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
@@ -42,11 +39,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-import mmazzola.thefloowchallenge.JourneyAdapter;
 import mmazzola.thefloowchallenge.R;
-import mmazzola.thefloowchallenge.dao.JourneyDatabase;
 import mmazzola.thefloowchallenge.dao.JourneyDatabaseHandler;
 import mmazzola.thefloowchallenge.model.Journey;
+import mmazzola.thefloowchallenge.util.JourneyAdapter;
 
 public class MainActivity extends MapActivity implements OnMapReadyCallback{
 
@@ -75,11 +71,13 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
     private JourneyAdapter mAdapter;
     private List<Marker> markers = new ArrayList<>();
 
+    private JourneyDatabaseHandler databaseHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        databaseHandler = new JourneyDatabaseHandler(this);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         toggleUserPositionButton = findViewById(R.id.toggleUserPosition);
@@ -89,7 +87,7 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
         mRecyclerView.addItemDecoration(new DividerItemDecoration(mRecyclerView.getContext(),
                 DividerItemDecoration.HORIZONTAL));
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        mAdapter = new JourneyAdapter(retrieveJourneys(), this);
+        mAdapter = new JourneyAdapter(databaseHandler.retrieveJourneys(), this);
 
         mRecyclerView.setAdapter(mAdapter);
         if(mAdapter.getItemCount()>0){
@@ -162,6 +160,7 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
                     mAdapter.setClickable(!isTrackingJourney);
                     try {
                         if (isTrackingJourney) {
+                            mAdapter.clearSelection();
                             //Start Tracking new Journey
                             mFusionClient.requestLocationUpdates(createLocationRequest(), mLocationCallback, Looper.myLooper());
                         } else {
@@ -211,7 +210,7 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
     private void terminateRoute() {
         if(currentJourney != null && currentJourney.getPoints().size() > 1) {
             currentJourney.endJourney();
-            persistJourney(currentJourney);
+            databaseHandler.persistJourney(currentJourney);
             mAdapter.addJourney(currentJourney);
             currentJourney = null;
             clearMap();
@@ -219,39 +218,6 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
         }else{
             Toast.makeText(this, "Not enough data collected to store a journey. Please try again!", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void persistJourney(Journey j) {
-        SQLiteDatabase database = new JourneyDatabaseHandler(this).getWritableDatabase();
-        ContentValues values = new ContentValues();
-        values.put(JourneyDatabase.Journeys.START_TIME, j.getStartTime());
-        values.put(JourneyDatabase.Journeys.END_TIME, j.getEndTime());
-        values.put(JourneyDatabase.Journeys.DURATION, j.getDurationMillis());
-        Long id = database.insert(JourneyDatabase.Journeys.TABLE_NAME, null, values);
-        for (LatLng p : j.getPoints()){
-            ContentValues v = new ContentValues();
-            v.put(JourneyDatabase.Points.LATITUDE, p.latitude);
-            v.put(JourneyDatabase.Points.LONGITUDE, p.longitude);
-            v.put(JourneyDatabase.Points.JOURNEY_ID,id);
-            database.insert(JourneyDatabase.Points.TABLE_NAME, null, v);
-        }
-    }
-
-    private List<Journey> retrieveJourneys(){
-        List<Journey> result = new ArrayList<>();
-        SQLiteDatabase database = new JourneyDatabaseHandler(this).getReadableDatabase();
-        final String query = "SELECT * FROM "+JourneyDatabase.Points.TABLE_NAME +" p INNER JOIN "+
-                JourneyDatabase.Journeys.TABLE_NAME+" j ON p."+JourneyDatabase.Points.JOURNEY_ID+"=j."+JourneyDatabase.Journeys._ID
-                + " ORDER BY p."+JourneyDatabase.Points.JOURNEY_ID;
-
-        Cursor cursor = database.rawQuery(query,null);
-        cursor.moveToFirst();
-        while(!cursor.isAfterLast()){
-            result.add(new Journey(cursor));
-            cursor.moveToNext();
-        }
-        cursor.close();
-        return result;
     }
 
     private void updateUI(LatLng newPoint){
