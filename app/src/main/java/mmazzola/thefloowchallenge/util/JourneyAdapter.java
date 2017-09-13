@@ -1,4 +1,4 @@
-package mmazzola.thefloowchallenge;
+package mmazzola.thefloowchallenge.util;
 
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import java.util.List;
 
+import mmazzola.thefloowchallenge.R;
 import mmazzola.thefloowchallenge.activity.MapActivity;
 import mmazzola.thefloowchallenge.model.Journey;
 
@@ -49,7 +50,7 @@ public class JourneyAdapter extends RecyclerView.Adapter<JourneyAdapter.ViewHold
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         final Journey j = mDataset.get(position);
-        ((TextView)holder.mLayout.findViewById(R.id.journey_name)).setText(String.format(mActivity.getString(R.string.route_name),position));
+        ((TextView)holder.mLayout.findViewById(R.id.journey_name)).setText(String.format(mActivity.getString(R.string.route_name),j.getId() != null ? j.getId() : position+1));
         final TextView startTime = holder.mLayout.findViewById(R.id.journey_startTime);
         startTime.setText(j.getStartTime());
         final TextView endTime = holder.mLayout.findViewById(R.id.journey_endTime);
@@ -96,6 +97,4 @@ public class JourneyAdapter extends RecyclerView.Adapter<JourneyAdapter.ViewHold
     public void addJourney(Journey j){
         this.mDataset.add(j);
     }
-
-
 }

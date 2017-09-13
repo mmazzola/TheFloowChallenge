@@ -2,7 +2,10 @@ package mmazzola.thefloowchallenge.activity;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
@@ -41,6 +44,8 @@ import java.util.concurrent.TimeUnit;
 
 import mmazzola.thefloowchallenge.JourneyAdapter;
 import mmazzola.thefloowchallenge.R;
+import mmazzola.thefloowchallenge.dao.JourneyDatabase;
+import mmazzola.thefloowchallenge.dao.JourneyDatabaseHandler;
 import mmazzola.thefloowchallenge.model.Journey;
 
 public class MainActivity extends MapActivity implements OnMapReadyCallback{
@@ -67,7 +72,6 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
     private boolean isTrackingJourney = false;
     private Journey currentJourney;
     private Polyline currentDraw;
-    private List<Journey> allJourneys = new ArrayList<>();
     private JourneyAdapter mAdapter;
     private List<Marker> markers = new ArrayList<>();
 
@@ -85,8 +89,12 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
         mRecyclerView.addItemDecoration(new DividerItemDecoration(mRecyclerView.getContext(),
                 DividerItemDecoration.HORIZONTAL));
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        mAdapter = new JourneyAdapter(allJourneys, this);
+        mAdapter = new JourneyAdapter(retrieveJourneys(), this);
+
         mRecyclerView.setAdapter(mAdapter);
+        if(mAdapter.getItemCount()>0){
+            findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
+        }
 
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
@@ -202,14 +210,48 @@ public class MainActivity extends MapActivity implements OnMapReadyCallback{
 
     private void terminateRoute() {
         if(currentJourney != null && currentJourney.getPoints().size() > 1) {
-            findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
             currentJourney.endJourney();
+            persistJourney(currentJourney);
             mAdapter.addJourney(currentJourney);
             currentJourney = null;
             clearMap();
+            findViewById(R.id.empty_journey_list).setVisibility(View.GONE);
         }else{
             Toast.makeText(this, "Not enough data collected to store a journey. Please try again!", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void persistJourney(Journey j) {
+        SQLiteDatabase database = new JourneyDatabaseHandler(this).getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(JourneyDatabase.Journeys.START_TIME, j.getStartTime());
+        values.put(JourneyDatabase.Journeys.END_TIME, j.getEndTime());
+        values.put(JourneyDatabase.Journeys.DURATION, j.getDurationMillis());
+        Long id = database.insert(JourneyDatabase.Journeys.TABLE_NAME, null, values);
+        for (LatLng p : j.getPoints()){
+            ContentValues v = new ContentValues();
+            v.put(JourneyDatabase.Points.LATITUDE, p.latitude);
+            v.put(JourneyDatabase.Points.LONGITUDE, p.longitude);
+            v.put(JourneyDatabase.Points.JOURNEY_ID,id);
+            database.insert(JourneyDatabase.Points.TABLE_NAME, null, v);
+        }
+    }
+
+    private List<Journey> retrieveJourneys(){
+        List<Journey> result = new ArrayList<>();
+        SQLiteDatabase database = new JourneyDatabaseHandler(this).getReadableDatabase();
+        final String query = "SELECT * FROM "+JourneyDatabase.Points.TABLE_NAME +" p INNER JOIN "+
+                JourneyDatabase.Journeys.TABLE_NAME+" j ON p."+JourneyDatabase.Points.JOURNEY_ID+"=j."+JourneyDatabase.Journeys._ID
+                + " ORDER BY p."+JourneyDatabase.Points.JOURNEY_ID;
+
+        Cursor cursor = database.rawQuery(query,null);
+        cursor.moveToFirst();
+        while(!cursor.isAfterLast()){
+            result.add(new Journey(cursor));
+            cursor.moveToNext();
+        }
+        cursor.close();
+        return result;
     }
 
     private void updateUI(LatLng newPoint){
