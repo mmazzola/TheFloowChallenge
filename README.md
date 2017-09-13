@@ -12,3 +12,7 @@ It acts as the controller of the layout and thus initializes the map and keeps t
 The list of the journeys is guided by the adapter for the displacement of the list, and then by the MainActivity via the implementation of the interface MapActivity.
 
 The usage of the FusedLocationProviderClient provides a light and precise tracking that stays safe even when the app is on background.
+
+The persistence of the journeys is handled with a SQLite db.
+
+After uninstall and re-install of the application, the database is restored with the Google backup.
